@@ -28,20 +28,36 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
         arrayOfUsers = this.readJSONFile("users.json");
 
+        /*
+         * Caso o sistema não possua nenhum usuário
+         * cria uma nova lista de usuário e cadastra
+         * o primeiro usuário.
+         */
         if (arrayOfUsers == null){
 
             user = this.createJSONUser(username, email, password);
             arrayOfUsers = new JSONArray();
             arrayOfUsers.put(user);
 
-            this.writeJSONFile(arrayOfUsers);
+            this.writeJSONFile(arrayOfUsers, "users.json");
         }
         else{
+        /*
+         * Do contrário, deverá-se verificar se o usuário
+         * já possui cadastro e dar o tratamento adequado
+         * para que não haja duplicações na lista de
+         * usuários.
+         */
             System.out.println("Arquivo JSON encontrado...");
         }
+
         return success;
     }
 
+    /*
+     * Cria um JSONObject usando as informações
+     * passadas como parâmetros.
+     */
     private JSONObject createJSONUser(String username, String email, String password) {
         JSONObject user = new JSONObject();
 
@@ -52,7 +68,18 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         return user;
     }
 
-    private JSONArray readJSONFile(String path) {
+    /*
+     * Realiza a leitura de um arquivo json
+     * que contenha um array e retorna-o na
+     * forma de um JSONArray.
+     * Caso o arquivo não exista, retornará
+     * um objeto nulo.
+     *
+     * O método é colocado como synchronized
+     * para evitar condições de corrida.
+     *
+     */
+    private synchronized JSONArray readJSONFile(String path) {
         File file = new File(path);
         JSONArray array = null;
 
@@ -70,15 +97,21 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         return array;
     }
 
-    private boolean writeJSONFile(JSONArray arrayOfUsers) {
+    /*
+     * Realiza a escrita de um JSONArray em um arquivo
+     * de texto afim de ser utilizado posteriormente.
+     *
+     * O método é colocado como sinchronized para evitar
+     * condições de corrida.
+     */
+    private synchronized boolean writeJSONFile(JSONArray arrayOfUsers, String filename) {
         boolean success = false;
         BufferedWriter writer;
         File file;
 
-        file = new File("users.json");
+        file = new File(filename);
 
         try {
-
             writer = new BufferedWriter(new FileWriter(file));
             writer.write(arrayOfUsers.toString(0));
             writer.close();
