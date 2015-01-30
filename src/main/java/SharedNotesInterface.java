@@ -18,10 +18,10 @@ public interface SharedNotesInterface extends Remote {
     public void disconnect(String email) throws RemoteException;
 
     public ArrayList<JSONArray> listAllNotes(String username) throws RemoteException;
-    public boolean createNote(JSONObject note) throws RemoteException;
-    public boolean updateNote(JSONObject note) throws RemoteException;
-    public boolean deleteNote(JSONObject note) throws RemoteException;
-    public boolean deleteNote(int indexNote) throws RemoteException;
-    public JSONObject retrieveNote(int indexNote) throws RemoteException;
+    public boolean createNote(String username, JSONObject note) throws RemoteException;
+    public boolean updateNote(String username, JSONObject note) throws RemoteException;
+    public boolean deleteNote(String username, JSONObject note) throws RemoteException;
+    public boolean deleteNote(String username, int indexNote) throws RemoteException;
+    public JSONObject retrieveNote(String username, int indexNote) throws RemoteException;
 
 }
