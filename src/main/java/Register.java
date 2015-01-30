@@ -32,7 +32,8 @@ public class Register {
 
         try{
             Naming.rebind(String.format("//%s:%d/shared_notes", Singleton.INSTANCE.getNameServerIPAddess(), Singleton.INSTANCE.getNameServerPort()), this.server);
-            server.createUser("joao", "joao@uol.com.br", "badiba200");
+            server.createUser("joano", "ana_gatinha@uol.com.br", "badiba200");
+            server.authenticate("ana_gatinha@uol.com.br", "badiba200");
             success = true;
         }
         catch (RemoteException e) {
