@@ -10,6 +10,7 @@ import java.net.URISyntaxException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
+import java.util.UUID;
 
 /**
  * Created by francisco on 30/01/15.
@@ -92,7 +93,7 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
             System.out.print("No user found...");
         }
 
-        return false;
+        return success;
     }
 
     @Override
@@ -101,32 +102,64 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
     }
 
     @Override
-    public ArrayList<JSONArray> listAllNotes(String username) throws RemoteException {
-        return null;
+    public JSONObject listAllNotes(String email, String password) throws RemoteException {
+        JSONObject notes = null;
+        boolean isAuthenticated = this.authenticate(email, password);
+
+        if(isAuthenticated){
+
+            JSONObject user = this.retrieveUserByEmail(email);
+            String notesFileName = String.format("%s.json", user.getString("userID"));
+            notes = this.readJSONFile(notesFileName);
+        }
+        else{
+
+            System.out.println("Erro de Autenticação");
+
+        }
+
+        return notes;
     }
 
     @Override
-    public boolean createNote(String username, JSONObject note) throws RemoteException {
+    public boolean createNote(String email, String password, JSONObject note) throws RemoteException {
+        boolean success = false;
+        JSONObject notes = this.listAllNotes(email, password);
+        JSONObject user = this.retrieveUserByEmail(email);
+
+        if (user != null) {
+
+            if (notes == null){
+                notes = new JSONObject();
+            }
+
+            String noteID = note.getString("noteID");
+            String filePath = String.format("%s.json", user.getString("userID"));
+
+            notes.put(noteID, note);
+            success = this.writeJSONFile(notes, filePath);
+        }
+
+        return success;
+    }
+
+    @Override
+    public boolean updateNote(String email, JSONObject note) throws RemoteException {
         return false;
     }
 
     @Override
-    public boolean updateNote(String username, JSONObject note) throws RemoteException {
+    public boolean deleteNote(String email, JSONObject note) throws RemoteException {
         return false;
     }
 
     @Override
-    public boolean deleteNote(String username, JSONObject note) throws RemoteException {
+    public boolean deleteNote(String email, int indexNote) throws RemoteException {
         return false;
     }
 
     @Override
-    public boolean deleteNote(String username, int indexNote) throws RemoteException {
-        return false;
-    }
-
-    @Override
-    public JSONObject retrieveNote(String username, int indexNote) throws RemoteException {
+    public JSONObject retrieveNote(String email, int indexNote) throws RemoteException {
         return null;
     }
 
@@ -141,7 +174,9 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
      */
     private JSONObject createJSONUser(String username, String email, String password) {
         JSONObject user = new JSONObject();
+        String userUUID = UUID.randomUUID().toString();
 
+        user.put("userID", userUUID);
         user.put("username", username);
         user.put("email", email);
         user.put("password", password);
@@ -149,10 +184,24 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         return user;
     }
 
+    private JSONObject retrieveUserByEmail(String email){
+        JSONObject usersDictionary = this.readJSONFile("users.json");
+        JSONObject user = null;
+        if (usersDictionary != null){
+            try {
+                user = usersDictionary.getJSONObject(email);
+            }
+            catch (JSONException e){
+                System.out.println("JSON parsing error...");
+            }
+        }
+        return user;
+    }
+
     /*
      * Realiza a leitura de um arquivo json
      * que contenha um array e retorna-o na
-     * forma de um JSONArray.
+     * forma de um JSONObject.
      * Caso o arquivo não exista, retornará
      * um objeto nulo.
      *
