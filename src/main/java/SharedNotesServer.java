@@ -16,6 +16,8 @@ import java.util.UUID;
  * Created by francisco on 30/01/15.
  */
 public class SharedNotesServer extends UnicastRemoteObject implements SharedNotesInterface {
+    private final String USERLIST_PATH = "USERS/USERLIST.json";
+    private final String NOTELIST_PATH = "USERSNOTES/%s.json";
 
     protected SharedNotesServer() throws RemoteException {
         super();
@@ -32,7 +34,8 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
         //lê o arquivo com os dados dos usuários
 
-        usersDictionary = this.readJSONFile("users.json");
+        usersDictionary = this.readJSONFile(this.USERLIST_PATH);
+
         user = this.createJSONUser(username, email, password);
 
         /*
@@ -41,8 +44,9 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
          * informações dos usuários no sistema.
          *
          */
-        if (usersDictionary == null)
+        if (usersDictionary == null) {
             usersDictionary = new JSONObject();
+        }
 
         //Testa se o usuário em questão já possui um registro.
 
@@ -63,7 +67,6 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         else
             System.out.println("Store new user can't complete!");
 
-
         return success;
     }
 
@@ -71,20 +74,18 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
     public boolean authenticate(String email, String password) throws RemoteException {
         boolean success = false;
 
-        JSONObject usersRegister = this.readJSONFile("users.json");
+        JSONObject usersRegister = this.readJSONFile(this.USERLIST_PATH);
         JSONObject userData;
 
         try{
             userData = (JSONObject) usersRegister.get(email);
             String archivedPassword = (String)userData.get("password");
 
-            if (archivedPassword.equals(password))
-            {
+            if (archivedPassword.equals(password)){
                 success = true;
                 System.out.println("User authenticated");
             }
-            else
-            {
+            else{
                 System.out.println("User not authenticated");
             }
 
@@ -101,6 +102,8 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
     }
 
+
+
     @Override
     public JSONObject listAllNotes(String email, String password) throws RemoteException {
         JSONObject notes = null;
@@ -109,7 +112,9 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         if(isAuthenticated){
 
             JSONObject user = this.retrieveUserByEmail(email);
-            String notesFileName = String.format("%s.json", user.getString("userID"));
+
+            String notesFileName = String.format(this.NOTELIST_PATH, user.getString("userID"));
+
             notes = this.readJSONFile(notesFileName);
         }
         else{
@@ -120,6 +125,8 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
         return notes;
     }
+
+
 
     @Override
     public boolean createNote(String email, String password, JSONObject note) throws RemoteException {
@@ -133,29 +140,38 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
                 notes = new JSONObject();
             }
 
-            String noteID = note.getString("noteID");
-            String filePath = String.format("%s.json", user.getString("userID"));
-
-            notes.put(noteID, note);
-            success = this.writeJSONFile(notes, filePath);
+            success = this.storeNote(user, note, notes);
         }
 
         return success;
     }
 
     @Override
-    public boolean updateNote(String email, JSONObject note) throws RemoteException {
-        return false;
+    public boolean updateNote(String email, String password, JSONObject note) throws RemoteException {
+        boolean success = false;
+        JSONObject notes = this.listAllNotes(email, password);
+        JSONObject user = this.retrieveUserByEmail(email);
+
+        if(user != null){
+            notes.remove(note.getString("noteID"));
+            success = this.storeNote(user, note, notes);
+        }
+
+        return success;
     }
 
     @Override
-    public boolean deleteNote(String email, JSONObject note) throws RemoteException {
-        return false;
-    }
+    public boolean deleteNote(String email, String password, JSONObject note) throws RemoteException {
+        boolean success = false;
+        JSONObject notes = this.listAllNotes(email, password);
+        JSONObject user = this.retrieveUserByEmail(email);
 
-    @Override
-    public boolean deleteNote(String email, int indexNote) throws RemoteException {
-        return false;
+        if(user != null) {
+            notes.remove(note.getString("noteID"));
+            String filename = String.format(this.NOTELIST_PATH, user.getString("userID"));
+            success = this.writeJSONFile(notes, filename);
+        }
+            return success;
     }
 
     @Override
@@ -163,9 +179,38 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         return null;
     }
 
+
+    /*****************************************************************************************************************
+     *
+     * Internal server methods to make my life easy
+     *
+     *****************************************************************************************************************/
+
+    private boolean storeNote(JSONObject user, JSONObject note, JSONObject notes) {
+        boolean success = false;
+        String noteID = note.getString("noteID");
+        String filePath = String.format(this.NOTELIST_PATH, user.getString("userID"));
+        File notesDirectory = new File("USERSNOTES");
+
+        if (!notesDirectory.exists()){
+            notesDirectory.mkdir();
+        }
+
+        notes.put(noteID, note);
+        success = this.writeJSONFile(notes, filePath);
+        return  success;
+    }
+
     private void storeUser(JSONObject user, JSONObject usersDictionary){
+
+        File userDirectory = new File("USERS");
+
+        if (! userDirectory.exists()){
+            userDirectory.mkdir();
+        }
+
         usersDictionary.put(user.getString("email"), user);
-        this.writeJSONFile(usersDictionary, "users.json");
+        this.writeJSONFile(usersDictionary, this.USERLIST_PATH);
     }
 
     /*
@@ -185,8 +230,9 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
     }
 
     private JSONObject retrieveUserByEmail(String email){
-        JSONObject usersDictionary = this.readJSONFile("users.json");
+        JSONObject usersDictionary = this.readJSONFile(this.USERLIST_PATH);
         JSONObject user = null;
+
         if (usersDictionary != null){
             try {
                 user = usersDictionary.getJSONObject(email);
@@ -215,8 +261,10 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
         try {
             URI uri = file.toURI();
-            JSONTokener tokener = new JSONTokener(uri.toURL().openStream());
+            InputStream fileStream = uri.toURL().openStream();
+            JSONTokener tokener = new JSONTokener(fileStream);
             jsonObject = new JSONObject(tokener);
+            fileStream.close();
         } catch (MalformedURLException e) {
             System.out.println("URL mal formada...");
         }
@@ -243,7 +291,7 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
         try {
             writer = new BufferedWriter(new FileWriter(file));
-            writer.write(jsonObject.toString(0));
+            writer.write(jsonObject.toString(3));
             writer.flush();
             writer.close();
             success = true;

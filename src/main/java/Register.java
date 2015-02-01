@@ -44,9 +44,6 @@ public class Register {
             obj.put("text", "shanya2");
 
             server.createNote("ana_gatinha@uol.com.br", "badiba200", obj);
-            server.createNote("ana_gatinha@uol.com.br", "badiba200", obj);
-            server.createNote("ana_gatinha@uol.com.br", "badiba200", obj);
-            server.createNote("ana_gatinha@uol.com.br", "badiba200", obj);
 
             success = true;
         }
