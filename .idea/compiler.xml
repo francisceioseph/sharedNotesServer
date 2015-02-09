@@ -27,4 +27,8 @@
     </annotationProcessing>
     <bytecodeTargetLevel target="1.7" />
   </component>
+  <component name="RmicSettings">
+    <option name="IS_EANABLED" value="true" />
+    <option name="ADDITIONAL_OPTIONS_STRING" value="-Djava.security.policy=src/main/java/rmi.policy" />
+  </component>
 </project>

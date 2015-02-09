@@ -1,15 +1,25 @@
+package sample;
+
+import sample.Register;
+import sample.SharedNotesServer;
+import sample.SingletonServer;
+
+import java.rmi.RMISecurityManager;
 import java.rmi.RemoteException;
 
 /**
  * Created by francisco on 30/01/15.
  */
-public class Main {
+public class ServerMain {
     public static void main (String args[])
     {
-        Singleton.INSTANCE.setNameServerIPAddess("localhost");
-        Singleton.INSTANCE.setNameServerPort(55555);
+        SingletonServer.INSTANCE.setNameServerIPAddess("localhost");
+        SingletonServer.INSTANCE.setNameServerPort(56789);
 
         Register register = null;
+
+        //if (System.getSecurityManager() == null) System.setSecurityManager(new RMISecurityManager());
+
         try {
             register = new Register(new SharedNotesServer());
         } catch (RemoteException e) {
