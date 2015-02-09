@@ -18,8 +18,6 @@ public class ServerMain {
 
         Register register = null;
 
-        //if (System.getSecurityManager() == null) System.setSecurityManager(new RMISecurityManager());
-
         try {
             register = new Register(new SharedNotesServer());
         } catch (RemoteException e) {
@@ -29,6 +27,10 @@ public class ServerMain {
         register.startRMIRegistry();
         boolean s = register.register();
 
-        System.out.print(s);
+        if (s)
+            System.out.println("Server UP!!!");
+        else
+            System.out.println("Server ERROR!!!");
+
     }
 }
