@@ -19,6 +19,7 @@ import java.util.UUID;
  */
 public class SharedNotesServer extends UnicastRemoteObject implements SharedNotesInterface {
     private final String USERLIST_PATH = "USERS/USERLIST.json";
+    private final String USERSCOOKIES_PATH = "USERS/CookieS.json";
     private final String NOTELIST_PATH = "USERSNOTES/%s.json";
 
     protected SharedNotesServer() throws RemoteException {
@@ -29,15 +30,10 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
     public boolean createUser(String username, String email, String password) throws RemoteException {
         boolean success = false;
         JSONObject user;
-
         user = this.retrieveUserByEmail(email);
 
         if (user == null){
-            user = new JSONObject();
-            user.put("name", username);
-            user.put("email", email);
-            user.put("password", password);
-
+            user = this.createJSONUser(username, email, password);
             success = this.storeUser(user);
         }
 
@@ -46,31 +42,53 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
     @Override
     public String authenticate(String email, String password) throws RemoteException {
+        String cookieValue = null;
+        JSONObject user = this.retrieveUserByEmail(email);
+        JSONObject userCookie = this.retrieveCookieByEmail(email);
+
+        //TODO retrieve Cookies file until attribute a new UUID to the logging user.
+
+        if (userCookie == null) {
+
+            if (user != null) {
+                String storedPassword = user.getString("password");
+
+                if (storedPassword.equals(password)) {
+                    cookieValue = UUID.randomUUID().toString();
+                    this.storeUserCookie(cookieValue, email);
+                }
+            }
+        }
+        else
+        {
+            cookieValue = userCookie.getString(email);
+        }
+
+        return cookieValue;
+    }
+
+    @Override
+    public void disconnect(String userCookie) throws RemoteException {
+
+    }
+
+    @Override
+    public JSONObject listAllNotes(String userCookie) throws RemoteException {
         return null;
     }
 
     @Override
-    public void disconnect(String userToken) throws RemoteException {
-
-    }
-
-    @Override
-    public JSONObject listAllNotes(String userToken) throws RemoteException {
-        return null;
-    }
-
-    @Override
-    public boolean createNote(String userToken, JSONObject note) throws RemoteException {
+    public boolean createNote(String userCookie, JSONObject note) throws RemoteException {
         return false;
     }
 
     @Override
-    public boolean updateNote(String userToken, JSONObject note) throws RemoteException {
+    public boolean updateNote(String userCookie, JSONObject note) throws RemoteException {
         return false;
     }
 
     @Override
-    public boolean deleteNote(String userToken, JSONObject note) throws RemoteException {
+    public boolean deleteNote(String userCookie, JSONObject note) throws RemoteException {
         return false;
     }
 
@@ -115,6 +133,29 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         return success;
     }
 
+    private boolean storeUserCookie(String userCookie, String email) {
+        boolean success = false;
+        JSONObject usersCookies = this.readJSONFile(this.USERSCOOKIES_PATH);
+        JSONObject Cookie = new JSONObject();
+
+        File userDirectory = new File("USERS");
+
+        if (! userDirectory.exists()){
+            userDirectory.mkdir();
+        }
+
+        if (usersCookies == null){
+            usersCookies = new JSONObject();
+        }
+
+        Cookie.put(email, userCookie);
+        usersCookies.put(email, Cookie);
+
+        success = this.writeJSONFile(usersCookies, this.USERSCOOKIES_PATH);
+
+        return success;
+    }
+
     /*
      * Cria um JSONObject usando as informações
      * passadas como parâmetros.
@@ -122,8 +163,6 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
     private JSONObject createJSONUser(String username, String email, String password) {
         JSONObject user = new JSONObject();
         String userUUID = UUID.randomUUID().toString();
-
-        user.put("userID", userUUID);
         user.put("username", username);
         user.put("email", email);
         user.put("password", password);
@@ -146,6 +185,22 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         return user;
     }
 
+    private JSONObject retrieveCookieByEmail(String email) {
+        JSONObject CookiesDictionary = this.readJSONFile(this.USERSCOOKIES_PATH);
+        JSONObject Cookie = null;
+
+        if (CookiesDictionary != null){
+            try {
+                Cookie = CookiesDictionary.getJSONObject(email);
+            }
+            catch (JSONException e){
+                System.out.println("JSON parsing error...");
+            }
+        }
+
+        return Cookie;
+    }
+
     /*
      * Realiza a leitura de um arquivo json
      * que contenha um array e retorna-o na
@@ -164,8 +219,8 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         try {
             URI uri = file.toURI();
             InputStream fileStream = uri.toURL().openStream();
-            JSONTokener tokener = new JSONTokener(fileStream);
-            jsonObject = new JSONObject(tokener);
+            JSONTokener Tokener = new JSONTokener(fileStream);
+            jsonObject = new JSONObject(Tokener);
             fileStream.close();
         } catch (MalformedURLException e) {
             System.out.println("URL mal formada...");
