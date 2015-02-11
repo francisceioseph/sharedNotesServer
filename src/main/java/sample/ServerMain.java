@@ -1,10 +1,5 @@
 package sample;
 
-import sample.Register;
-import sample.SharedNotesServer;
-import sample.SingletonServer;
-
-import java.rmi.RMISecurityManager;
 import java.rmi.RemoteException;
 
 /**

@@ -1,6 +1,5 @@
 package sample;
 
-import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -8,10 +7,8 @@ import org.json.JSONTokener;
 import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.ArrayList;
 import java.util.UUID;
 
 /**
@@ -46,8 +43,6 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         JSONObject user = this.retrieveUserByEmail(email);
         JSONObject userCookie = this.retrieveCookieByEmail(email);
 
-        //TODO retrieve Cookies file until attribute a new UUID to the logging user.
-
         if (userCookie == null) {
 
             if (user != null) {
@@ -70,6 +65,19 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
     @Override
     public void disconnect(String userCookie) throws RemoteException {
 
+    }
+
+    @Override
+    public String retrievePublicUserInformation (String email, String password) throws RemoteException {
+        String uuid = this.authenticate(email, password);
+        JSONObject userPublicInformation = null;
+
+        if (uuid != null) {
+            userPublicInformation = this.retrieveUserByEmail(email);
+            userPublicInformation.remove("password");
+        }
+
+        return userPublicInformation.toString(3);
     }
 
     @Override

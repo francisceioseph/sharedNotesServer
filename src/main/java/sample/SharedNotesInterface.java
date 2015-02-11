@@ -1,11 +1,9 @@
 package sample;
 
-import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.util.ArrayList;
 
 /**
  * Created by francisco on 30/01/15.
@@ -13,6 +11,8 @@ import java.util.ArrayList;
 public interface SharedNotesInterface extends Remote {
 
     public boolean createUser(String username, String email, String password) throws RemoteException;
+    public String retrievePublicUserInformation (String email, String password) throws RemoteException;
+
 //    public boolean updateUser(String username, String email, String password) throws RemoteException;
 //    public boolean deleteUser(String username, String email, String password) throws RemoteException;
 

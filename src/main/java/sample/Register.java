@@ -1,8 +1,5 @@
 package sample;
 
-import sample.SharedNotesServer;
-import sample.SingletonServer;
-
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 
