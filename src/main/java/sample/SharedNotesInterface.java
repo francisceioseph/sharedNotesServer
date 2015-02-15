@@ -10,17 +10,21 @@ import java.rmi.RemoteException;
  */
 public interface SharedNotesInterface extends Remote {
 
-    public boolean createUser(String username, String email, String password) throws RemoteException;
-    public String retrievePublicUserInformation (String email, String password) throws RemoteException;
+    public boolean login(String email, String password) throws RemoteException;
+    public boolean logout(String email) throws RemoteException;
 
-//    public boolean updateUser(String username, String email, String password) throws RemoteException;
-//    public boolean deleteUser(String username, String email, String password) throws RemoteException;
+    public boolean createUser(String jsonEncodedUserData) throws RemoteException;
+    public String retrieveUser (String email) throws RemoteException;
+    public boolean updateUser(String jsonEncodedUserData) throws RemoteException;
+    public boolean deleteUser (String email) throws RemoteException;
 
-    public String authenticate(String email, String password) throws RemoteException;
-    public void disconnect(String userToken) throws RemoteException;
+    public boolean createNote (String email, String jsonEncodedNoteData) throws RemoteException;
+    public String retrieveNote (String email, String noteID) throws RemoteException;
+    public boolean updateNote (String email, String jsonEncodedData) throws RemoteException;
+    public boolean deleteNote (String email, String noteID) throws RemoteException;
 
-    public JSONObject listAllNotes(String userToken) throws RemoteException;
-    public boolean createNote(String userToken, JSONObject note) throws RemoteException;
-    public boolean updateNote(String userToken, JSONObject note) throws RemoteException;
-    public boolean deleteNote(String userToken, JSONObject note) throws RemoteException;
+    public String listAllNotes(String email) throws RemoteException;
+
+
+
 }

@@ -1,5 +1,6 @@
 package sample;
 
+import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 import org.json.JSONTokener;
@@ -9,115 +10,203 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
-import java.util.UUID;
 
 /**
  * Created by francisco on 30/01/15.
  */
 public class SharedNotesServer extends UnicastRemoteObject implements SharedNotesInterface {
     private final String USERLIST_PATH = "USERS/USERLIST.json";
-    private final String USERSCOOKIES_PATH = "USERS/CookieS.json";
-    private final String NOTELIST_PATH = "USERSNOTES/%s.json";
+    private final String USERLOGGED_LIST = "USERS/LOGGED_LIST.json";
+    private final String NOTELIST_PATH = "NOTES/%s.json";
 
     protected SharedNotesServer() throws RemoteException {
         super();
     }
 
     @Override
-    public boolean createUser(String username, String email, String password) throws RemoteException {
+    public boolean login(String email, String password) throws RemoteException {
         boolean success = false;
-        JSONObject user;
-        user = this.retrieveUserByEmail(email);
+        JSONObject user = this.retrieveUserByEmail(email);
+        String storedPassword = user.getString("password");
 
-        if (user == null){
-            user = this.createJSONUser(username, email, password);
-            success = this.storeUser(user);
+        if (password.equals(storedPassword)){
+            success = this.checkin(email);
         }
 
         return success;
     }
 
     @Override
-    public String authenticate(String email, String password) throws RemoteException {
-        String cookieValue = null;
+    public boolean logout(String email) throws RemoteException {
+        boolean success = false;
+        File usersDirectory = new File("USERS");
+
+        if (!usersDirectory.exists())
+            success = true;
+        else{
+            success = this.checkout(email);
+        }
+        return success;
+    }
+
+    @Override
+    public boolean createUser(String jsonEncodedUserData) throws RemoteException {
+        JSONObject userToCreate = new JSONObject(jsonEncodedUserData);
+        JSONObject storedUser = this.retrieveUserByEmail(userToCreate.getString("email"));
+        boolean success = false;
+
+        if (storedUser == null){
+            success = this.storeUser(userToCreate);
+        }
+
+        return success;
+    }
+
+    @Override
+    public String retrieveUser(String email) throws RemoteException {
         JSONObject user = this.retrieveUserByEmail(email);
-        JSONObject userCookie = this.retrieveCookieByEmail(email);
+        String userEncodedData = null;
 
-        if (userCookie == null) {
-
-            if (user != null) {
-                String storedPassword = user.getString("password");
-
-                if (storedPassword.equals(password)) {
-                    cookieValue = UUID.randomUUID().toString();
-                    this.storeUserCookie(cookieValue, email);
-                }
-            }
-        }
-        else
-        {
-            cookieValue = userCookie.getString(email);
+        if (user != null){
+            user.remove("password");
+            userEncodedData = user.toString(3);
         }
 
-        return cookieValue;
+        return userEncodedData ;
     }
 
     @Override
-    public void disconnect(String userCookie) throws RemoteException {
+    public boolean updateUser(String jsonEncodedUserData) throws RemoteException {
+        boolean success;
+        JSONObject userToUpdate = new JSONObject(jsonEncodedUserData);
 
+        success = this.storeUser(userToUpdate);
+
+        return success;
     }
 
     @Override
-    public String retrievePublicUserInformation (String email, String password) throws RemoteException {
-        String uuid = this.authenticate(email, password);
-        JSONObject userPublicInformation = null;
+    public boolean deleteUser(String email) throws RemoteException {
+        JSONObject usersDictionary = this.listAllUsers();
 
-        if (uuid != null) {
-            userPublicInformation = this.retrieveUserByEmail(email);
-            userPublicInformation.remove("password");
+        usersDictionary.remove(email);
+
+        return this.writeJSONFile(usersDictionary, this.USERLIST_PATH);
+    }
+
+    @Override
+    public boolean createNote(String email, String jsonEncodedNoteData) throws RemoteException {
+        JSONObject userNote = new JSONObject(jsonEncodedNoteData);
+        return this.storeNote(email, userNote);
+    }
+
+    @Override
+    public String retrieveNote(String email, String noteID) throws RemoteException {
+        JSONObject notesFromUser = this.listAllNotesFromUser(email);
+        JSONObject note = notesFromUser.getJSONObject(noteID);
+        String noteData = null;
+
+        if (note == null){
+            noteData = note.toString(3);
         }
 
-        return userPublicInformation.toString(3);
+        return noteData;
     }
 
     @Override
-    public JSONObject listAllNotes(String userCookie) throws RemoteException {
-        return null;
+    public boolean updateNote(String email, String jsonEncodedData) throws RemoteException {
+        JSONObject userNote = new JSONObject(jsonEncodedData);
+        return this.storeNote(email, userNote);
     }
 
     @Override
-    public boolean createNote(String userCookie, JSONObject note) throws RemoteException {
-        return false;
+    public boolean deleteNote(String email, String noteID) throws RemoteException {
+        JSONObject notesFromUser = this.listAllNotesFromUser(email);
+        String path = String.format(this.NOTELIST_PATH, email);
+
+        notesFromUser.remove(noteID);
+
+        return this.writeJSONFile(notesFromUser, path);
     }
 
     @Override
-    public boolean updateNote(String userCookie, JSONObject note) throws RemoteException {
-        return false;
-    }
-
-    @Override
-    public boolean deleteNote(String userCookie, JSONObject note) throws RemoteException {
-        return false;
+    public String listAllNotes(String email) throws RemoteException {
+        return this.listAllNotesFromUser(email).toString(3);
     }
 
     /*****************************************************************************************************************
      *
      * Internal server methods to make my life easy
      *
-     *****************************************************************************************************************/
+     ********************************************n*********************************************************************/
 
-    private boolean storeNote(JSONObject user, JSONObject note, JSONObject notes) {
-        boolean success = false;
-        String noteID = note.getString("noteID");
-        String filePath = String.format(this.NOTELIST_PATH, user.getString("userID"));
-        File notesDirectory = new File("USERSNOTES");
+    private JSONObject listAllUsers(){
+        JSONObject userDictionary = this.readJSONFile(this.USERLIST_PATH);
+        return userDictionary;
+    }
 
-        if (!notesDirectory.exists()){
-            notesDirectory.mkdir();
+    private JSONObject listAllNotesFromUser(String email){
+        File notesDirectory = new File("NOTES");
+        JSONObject notesFromUser = null;
+
+        if (notesDirectory.exists()){
+            String notesPath = String.format(this.NOTELIST_PATH, email);
+            notesFromUser = this.readJSONFile(notesPath);
         }
 
-        notes.put(noteID, note);
-        success = this.writeJSONFile(notes, filePath);
+        return notesFromUser;
+    }
+
+    private boolean checkin(String email){
+        File usersDirectory = new File("USERS");
+        JSONArray loggedUsers;
+
+        if (!usersDirectory.exists())
+            usersDirectory.mkdir();
+
+        JSONObject loggedList = this.readJSONFile(this.USERLOGGED_LIST);
+
+        if (loggedList == null){
+            loggedList = new JSONObject();
+            loggedUsers = new JSONArray();
+        }
+        else {
+            loggedUsers = loggedList.getJSONArray("users");
+        }
+
+        loggedUsers.put(email);
+        loggedList.put("users", loggedUsers);
+
+        return this.writeJSONFile(loggedList, this.USERLOGGED_LIST);
+    }
+
+    private boolean checkout(String email) {
+
+        JSONObject loggedList = this.readJSONFile(this.USERLOGGED_LIST);
+        JSONArray loggedUsers = loggedList.getJSONArray("users");
+
+        for (int i = 0; i < loggedUsers.length(); i++){
+            if (loggedUsers.getString(i).equals(email)){
+                loggedUsers.remove(i);
+            }
+        }
+
+        loggedList.put("users", loggedUsers);
+        return this.writeJSONFile(loggedList, this.USERLOGGED_LIST);
+    }
+
+    private boolean storeNote(String email, JSONObject note) {
+        boolean success;
+        JSONObject notesFromUser = this.listAllNotesFromUser(email);
+        String notesPath = String.format(this.NOTELIST_PATH, email);
+
+        if (notesFromUser == null){
+            notesFromUser = new JSONObject();
+        }
+
+        notesFromUser.put(note.getString("ID"), note);
+        success = this.writeJSONFile(notesFromUser, notesPath);
+
         return  success;
     }
 
@@ -141,43 +230,6 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         return success;
     }
 
-    private boolean storeUserCookie(String userCookie, String email) {
-        boolean success = false;
-        JSONObject usersCookies = this.readJSONFile(this.USERSCOOKIES_PATH);
-        JSONObject Cookie = new JSONObject();
-
-        File userDirectory = new File("USERS");
-
-        if (! userDirectory.exists()){
-            userDirectory.mkdir();
-        }
-
-        if (usersCookies == null){
-            usersCookies = new JSONObject();
-        }
-
-        Cookie.put(email, userCookie);
-        usersCookies.put(email, Cookie);
-
-        success = this.writeJSONFile(usersCookies, this.USERSCOOKIES_PATH);
-
-        return success;
-    }
-
-    /*
-     * Cria um JSONObject usando as informações
-     * passadas como parâmetros.
-     */
-    private JSONObject createJSONUser(String username, String email, String password) {
-        JSONObject user = new JSONObject();
-        String userUUID = UUID.randomUUID().toString();
-        user.put("username", username);
-        user.put("email", email);
-        user.put("password", password);
-
-        return user;
-    }
-
     private JSONObject retrieveUserByEmail(String email){
         JSONObject usersDictionary = this.readJSONFile(this.USERLIST_PATH);
         JSONObject user = null;
@@ -191,22 +243,6 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
             }
         }
         return user;
-    }
-
-    private JSONObject retrieveCookieByEmail(String email) {
-        JSONObject CookiesDictionary = this.readJSONFile(this.USERSCOOKIES_PATH);
-        JSONObject Cookie = null;
-
-        if (CookiesDictionary != null){
-            try {
-                Cookie = CookiesDictionary.getJSONObject(email);
-            }
-            catch (JSONException e){
-                System.out.println("JSON parsing error...");
-            }
-        }
-
-        return Cookie;
     }
 
     /*
