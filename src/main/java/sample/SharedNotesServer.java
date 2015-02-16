@@ -29,7 +29,7 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         JSONObject user = this.retrieveUserByEmail(email);
         String storedPassword = user.getString("password");
 
-        if (password.equals(storedPassword)){
+        if (password.equals(storedPassword) && !password.isEmpty()){
             success = this.checkin(email);
         }
 
@@ -142,6 +142,12 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
 
     private JSONObject listAllUsers(){
         JSONObject userDictionary = this.readJSONFile(this.USERLIST_PATH);
+
+        if (userDictionary == null){
+            userDictionary = new JSONObject();
+        }
+
+
         return userDictionary;
     }
 
@@ -149,9 +155,16 @@ public class SharedNotesServer extends UnicastRemoteObject implements SharedNote
         File notesDirectory = new File("NOTES");
         JSONObject notesFromUser = null;
 
-        if (notesDirectory.exists()){
-            String notesPath = String.format(this.NOTELIST_PATH, email);
-            notesFromUser = this.readJSONFile(notesPath);
+        if (!notesDirectory.exists()){
+            notesDirectory.mkdir();
+        }
+
+        String notesPath = String.format(this.NOTELIST_PATH, email);
+        notesFromUser = this.readJSONFile(notesPath);
+
+        if (notesFromUser == null){
+            notesFromUser = new JSONObject();
+            this.writeJSONFile(notesFromUser, String.format(this.NOTELIST_PATH, email));
         }
 
         return notesFromUser;
